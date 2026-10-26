@@ -37,8 +37,11 @@ contas = {
 def consulta_saldo(id_cliente: int) -> dict:
     try: 
         dados_usuario = contas[id_cliente]
-        del dados_usuario['extrato']
-        return dados_usuario
+        titular = dados_usuario['titular']
+        saldo = dados_usuario['saldo']
+        return {"titular": titular,
+                "saldo": saldo}
+    
     except KeyError:
         error = {'detail': 'Usuario não encontrado'}
         return ValueError(json.dumps(error))
@@ -48,8 +51,11 @@ def consulta_saldo(id_cliente: int) -> dict:
 def consultar_extrato(id_cliente: int) -> dict:
     try: 
         dados_usuario = contas[id_cliente]
-        del dados_usuario['saldo']
-        return dados_usuario
+        titular = dados_usuario['titular']
+        extrato = dados_usuario['extrato']
+        return {"titular": titular,
+                "extrato": extrato}
+        
     except KeyError:
         error = {'detail': 'Usuario não encontrado'}
         return ValueError(json.dumps(error))
@@ -74,7 +80,9 @@ def transferir_valor(id_cliente: int, destinatario_id:int, valor_a_ser_enviado:f
             
             dados_usuario['saldo'] = saldo_cliente - valor_a_ser_enviado
             print(f'Dados do cliente depois da operação: {dados_usuario}')
+            dados_usuario['extrato'].append({"tipo": "saida", "valor": valor_a_ser_enviado})
             dados_destinatario['saldo'] += valor_a_ser_enviado
+            dados_destinatario['extrato'].append({"tipo": "entrada", "valor": valor_a_ser_enviado})
             print(f'Dados do destinatario depois da operação: {dados_destinatario}')
             return dados_usuario
         except Exception as error:
