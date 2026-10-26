@@ -35,11 +35,13 @@ contas = {
 
 @tool(description="Tool responsavel por consultar o saldo de um individuo atraves do id recebido por parametro")
 def consulta_saldo(id_cliente: int) -> dict:
+    print(contas[id_cliente])
     try: 
         dados_usuario = contas[id_cliente]
-        del dados_usuario[id_cliente]['extrato']
-        return dados_usuario[id_cliente]
-    except KeyError:
+        del dados_usuario['extrato']
+        return dados_usuario
+    except KeyError as err:
+        print(err)
         error = {'detail': 'Usuario não encontrado'}
         return ValueError(json.dumps(error))
 
