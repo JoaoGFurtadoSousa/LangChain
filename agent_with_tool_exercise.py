@@ -43,8 +43,9 @@ def consulta_saldo(id_cliente: int) -> dict:
                 "saldo": saldo}
     
     except KeyError:
-        error = {'detail': 'Usuario não encontrado'}
-        return ValueError(json.dumps(error))
+        return {"sucess": False,
+        "error": "Account not found",
+        "detail": "Usuario não encontrado"}
 
 
 @tool(description="Tool responsavel por consultar o extrato de um individuo atraves do id recebido por parametro")
@@ -57,40 +58,50 @@ def consultar_extrato(id_cliente: int) -> dict:
                 "extrato": extrato}
         
     except KeyError:
-        error = {'detail': 'Usuario não encontrado'}
-        return ValueError(json.dumps(error))
+        return {"sucess": False,
+                "error": "Account not found",
+                "detail": "Usuario não encontrado"}
+
 
 @tool(description="Tool responsavel por realizar transações entre clientes. Como parametro são utilizados o id_cliente que irá enviar o dinheiro; destinatario_id é o id de quem irá receber e o valor enviado de uma conta para a outra")
 def transferir_valor(id_cliente: int, destinatario_id:int, valor_a_ser_enviado:float) -> dict:
+    
+    if id_cliente == destinatario_id:
+        return {"success":False,
+                "error":"A client cannot send to themselves",
+                'detail': 'O cliente não pode realizar uma transação para esta mesma conta. Digite uma outra conta valida'}
+    
+    if valor_a_ser_enviado <= 0:
+        
+        return {"success": False,
+                "error": "Value cannot be negative",
+                "detail": "O valor a ser enviado não pode ser menor que zero."}
+    
+    
     try: 
-        dados_usuario = contas[id_cliente]
-        print(f'Dados do cliente antes da operação: {dados_usuario}')
+        dados_usuario = contas[id_cliente]       
         dados_destinatario = contas[destinatario_id]
-        print(f'Dados do destinatario antes da operação: {dados_destinatario}')
         try:
             saldo_cliente = dados_usuario['saldo']
-            
-            if valor_a_ser_enviado <= 0:
-                error = {'detail': 'O valor a ser enviado não pode ser menor que zero.'}
-                raise ValueError(json.dumps(error))
-            
+
             if saldo_cliente < valor_a_ser_enviado:
-                error = {'detail': f'Saldo do Cliente {dados_usuario["titular"]} não pode ser inferior ao valor enviado. Tente com outro valor'}
-                raise ValueError(json.dumps(error))
+                    return {"success": False,
+                            "error": "The balance cannot be less than the transferable amount.",
+                            "detail": f"Saldo do Cliente {dados_usuario["titular"]} não pode ser inferior ao valor enviado."}
             
             dados_usuario['saldo'] = saldo_cliente - valor_a_ser_enviado
-            print(f'Dados do cliente depois da operação: {dados_usuario}')
             dados_usuario['extrato'].append({"tipo": "saida", "valor": valor_a_ser_enviado})
             dados_destinatario['saldo'] += valor_a_ser_enviado
             dados_destinatario['extrato'].append({"tipo": "entrada", "valor": valor_a_ser_enviado})
-            print(f'Dados do destinatario depois da operação: {dados_destinatario}')
+            
             return dados_usuario
         except Exception as error:
             return error
     except KeyError:
-        error = {'detail': 'Usuario não encontrado'}
-        raise ValueError(json.dumps(error))
-
+         return {"sucess": False,
+                "error": "Account not found",
+                "detail": "Usuario não encontrado"}
+    
 model = init_chat_model(model=os.getenv("OPENCODE_MODEL"),
                         model_provider="openai",
                         api_key=os.getenv("OPENCODE_API_KEY"),
@@ -105,13 +116,11 @@ agent = create_agent(model = model,
                      system_prompt= "Voce é um auxiliar financeiro que deve ser bastante compreensivo com os usuarios. Utilize as tools listadas para realizar a operação desejada por cada usuario. Sempre fale o nome do usuario do id e em seguinte o resultado da operação",
                      tools= [consulta_saldo, consultar_extrato, transferir_valor])
 
+
+
 for chunk, metadata in agent.stream({"messages": [HumanMessage(user_input),]},
                                     stream_mode = "messages"):
     if metadata.get("langgraph_node") == "model":
         if chunk.text:
             print(chunk.text, flush=True, end="")
 
-# response = agent.invoke(input= {'messages': [HumanMessage(user_input),] })
-# print(response["messages"][-1].content)
-
-#consulta_saldo.invoke({"id_cliente": 1})
